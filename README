@@ -1,0 +1,18 @@
+Chiara's REST knockout timecourse using D4 (control) and C18 (REST knockout) ESCs differentiating into NSCs over 4 days.
+Arrays are performed in quadruplicate at Days 0, 1, 2 and 4 - biggest change expected at Day 2.
+
+Arrays are:
+
+D4 Day 0 - 5719786023 A-D
+D4 Day 4 - 5719786023 E-H
+D4 Day 1 - 5719786004 A-D
+D4 Day 2 - 5719786004 E-H
+
+C18 Day 0 - 5719786006 A-C (only triplicate)
+C18 Day 4 - 5719786006 D-G
+C18 Day 1 - 5719786005 A-D
+C18 Day 2 - 5719786005 E-H
+
+Do straight comparisons between samples at each timepoint
+
+Then do some sort of clustering thing between samples across the timepoints
