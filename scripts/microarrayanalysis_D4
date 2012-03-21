@@ -1,4 +1,4 @@
-stringsAsFactors=FALSE
+options(stringsAsFactors=FALSE)
 
 qw <- function(...) {
   as.character(sys.call()[-1])
@@ -113,23 +113,64 @@ write.csv(day4vs0,"results/day4vs0_D4.csv",row.names=F)
 
 #####take top changing genes between Day 0 and Day 4 - pull out expression values for these and then cluster....
 
+###########take genes that change somewhere along timecourse
+
+day0vs1_sig <- day0vs1[which(day0vs1[,"adj.P.Val"] <= 0.05),]
+day0vs1_sig.o <- day0vs1_sig[order(abs(day0vs1_sig[,"logFC"]),decreasing = TRUE),]
+day0vs1_sig.od <- day0vs1_sig.o[!duplicated(day0vs1_sig.o[,"EnsemblID"]),c("ID","EnsemblID","logFC")]
+
+day1vs2_sig <- day1vs2[which(day1vs2[,"adj.P.Val"] <= 0.05),]
+day1vs2_sig.o <- day1vs2_sig[order(abs(day1vs2_sig[,"logFC"]),decreasing = TRUE),]
+day1vs2_sig.od <- day1vs2_sig.o[!duplicated(day1vs2_sig.o[,"EnsemblID"]),c("ID","EnsemblID","logFC")]
+
+day2vs4_sig <- day2vs4[which(day2vs4[,"adj.P.Val"] <= 0.05),]
+day2vs4_sig.o <- day2vs4_sig[order(abs(day2vs4_sig[,"logFC"]),decreasing = TRUE),]
+day2vs4_sig.od <- day2vs4_sig.o[!duplicated(day2vs4_sig.o[,"EnsemblID"]),c("ID","EnsemblID","logFC")]
+
+day4vs0_sig <- day4vs0[which(day4vs0[,"adj.P.Val"] <= 0.05),]
+day4vs0_sig.o <- day4vs0_sig[order(abs(day4vs0_sig[,"logFC"]),decreasing = TRUE),]
+day4vs0_sig.od <- day4vs0_sig.o[!duplicated(day4vs0_sig.o[,"EnsemblID"]),c("ID","EnsemblID","logFC")]
+
+changing_time <- rbind(day0vs1_sig.od,day1vs2_sig.od,day2vs4_sig.od,day4vs0_sig.od)
+
+write.csv(changing_time, file = "results/genes_changing_across_timecourse_sig.csv")
+
+
+##should also take genes that now have a change in expression when remove REST - ie all genes that have a change anywhere in REST null
+
 f.res <- f.test[order(abs(f.test[,"day0vs4"]),decreasing=TRUE),]
-f.res <- f.test[!duplicated(f.test[,"symbol"]),]
+f.res <- f.test[!duplicated(f.test[,"EnsemblID"]),]
 
-#take genes that change > +/- 1
+#take genes that change > +/- 1 significantly
 
-changed.genes <- f.res[which(abs(f.res[,"day0vs4"]) >= 1),c("ID","symbol")]
+f.res_sig <- f.res[which(f.res[,"adj.P.Val"] <= 0.01),]
+changed.genes <- f.res_sig[which(abs(f.res_sig[,"day0vs4"]) >= 1),c("ID","EnsemblID")]
+
+write.csv(changed.genes, file = "results/genes_changing_across_timecourse.csv")
+
+changing_time_csv <- read.csv(file = "results/genes_changing_withwithout_REST.csv")
+changing_time <- changing_time_csv[,c("ID","EnsemblID")]
+
+changing_genes <- rbind(changed.genes,changing_time)
+
+#remove duplicates
+
+change_gene <- changing_genes[!duplicated(changing_genes[,"EnsemblID"]),]
 
 #reload all data and keep mutant aswell...
 BSData <- get(load("results/BSData.quantile.RData"))
 E <- exprs(BSData)
 E <- E[,c(1:4,24:27,28:31,5:8,9:11,16:19,20:23,12:15)]
 
-merged <- merge(E, changed.genes, by.x = "row.names", by.y = "ID")
+changeE <- merge(E, change_gene, by.x = "row.names", by.y = "ID")
 
-rownames(merged) <- merged[,"Row.names"]
+#remove one gene that doesnt have annotation
+changeE <- changeE[which(!(is.na(changeE[,"EnsemblID"]))),]
 
-Exp <- merged[,2:32]
+#put rownames as ensemblIDs, makes downstream stuff easier
+rownames(changeE) <- changeE[,"EnsemblID"]
+
+Exp <- changeE[,2:32]
 
 ##calculate averages
 
@@ -171,13 +212,13 @@ gene.hopach_D4 <- hopach(aves_D4, dmat=gene.dist_D4, d="euclid",K=1)
 gene.hopach_C18 <- hopach(aves_C18, dmat=gene.dist_C18, d="euclid",K=1)
 
 #plot distance matrix
-#postscript(file="results/distancematrix_D4.ps", horizontal=FALSE)
-#dplot(gene.dist_D4, 
-#	gene.hopach_D4, 
-#	ord = "cluster", 
-#	main = "ESC D4 Timecourse", 
-#	showclusters = TRUE)
-#dev.off()
+postscript(file="results/distancematrix_D4.ps", horizontal=FALSE)
+dplot(gene.dist_D4, 
+	gene.hopach_D4, 
+	ord = "cluster", 
+	main = "ESC D4 Timecourse", 
+	showclusters = TRUE)
+dev.off()
 
 D4_clusters <- gene.hopach_D4$clust$k
 C18_clusters <- gene.hopach_C18$clust$k
@@ -185,14 +226,14 @@ C18_clusters <- gene.hopach_C18$clust$k
 #run Mfuzz to plot clusters
 library(Mfuzz)
 tmp_expr_D4 = new('ExpressionSet', exprs=aves_D4)
-cl_D4 = mfuzz(tmp_expr_D4, c=D4_clusters,m=2)
+cl_D4 = mfuzz(tmp_expr_D4, c=6,m=3)
 
 tmp_expr_C18 = new('ExpressionSet', exprs=aves_C18)
 cl_C18 = mfuzz(tmp_expr_C18, c=C18_clusters,m=2)
 
 ######pull genes out and compare clusters see which is closest....
 
-core_D4 <- acore(tmp_expr_D4, cl_D4, min.acore=0.1)
+core_D4 <- acore(tmp_expr_D4, cl_D4, min.acore=0.5)
 core_C18 <- acore(tmp_expr_C18, cl_C18, min.acore=0.1)
 
 #link back to f.test for wt D0vs4
@@ -244,46 +285,6 @@ annotate.cluster_C18 <- function(core.num){
 for(i in 1:length(core_C18)){
   annotate.cluster_C18(i)
 }
-
-###see which modules are closest to each other
-
-compare.modules <- function(mod.num){
-   first.module <- core_D4[[7]][,1]
-   second.module <- core_C18[[mod.num]][,1]
-   all <- rownames(E)
-
-  module1.inmod2 <- rep("not.in.mod2", length(first.module))
-  alldata.inmod2 <- rep("not.in.mod2", length(all))
-
-   module1.inmod2[which(first.module %in% second.module)] <- 'in.mod2'
-   alldata.inmod2[which(all %in% second.module)] <- 'in.mod2'
-
-   levs=c("in.mod2","not.in.mod2")
-   module1.inmod2 <- factor(module1.inmod2, levels=levs)
-   alldata.inmod2 <- factor(alldata.inmod2, levels=levs)
-
-    mod1 <- summary( module1.inmod2 )
-    alldata <- summary( alldata.inmod2 )
-
-
- cont.table <- rbind(mod1, alldata)
-
- res1 <- cont.table
- 
- res2 <- fisher.test( cont.table , alternative = "greater")
-
- results <- c(res1, res2$p)
- 
- results 
-}
-
-for(i in 1:length(core_C18)){
-  compare.modules(i)
-  results
-  
-}
-
-
 
 
 matt.plot<-function (eset, cl, mfrow = c(1, 1), colo, min.mem = 0, time.labels, new.window = TRUE, ymin=-999, ymax=-999, xlab="Time", ylab="Expression Changes")
@@ -385,7 +386,7 @@ postscript(file="results/Mfuzz/D4_mfuzzplots.ps",
 	   mfrow=c(2,5),
 	   new.window = FALSE,
 	   time.labels=names,
-	   min.mem=0.3,
+	   min.mem=0.5,
           ymin = 6,
          ymax = 14,
            xlab = ""

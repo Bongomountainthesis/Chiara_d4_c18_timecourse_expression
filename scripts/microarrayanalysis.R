@@ -79,7 +79,7 @@ ebFit$genes = anno
 f.test<- topTable(ebFit, number=nrow(E))
 rownames(f.test)<-f.test$ID
 #f.test<-f.test[which(f.test[,"adj.P.Val"]<=0.005),]
-f.test<-f.test[order(f.test[,"logFC"],decreasing=TRUE),]
+f.test<-f.test[order(f.test[,"adj.P.Val"],decreasing=FALSE),]
 write.csv(f.test,"results/f_test.csv",row.names=F)
 
 day0<-topTable(ebFit, coef=1, adjust="BH", number=nrow(E))
@@ -108,6 +108,47 @@ write.csv(day4,"results/day4.csv",row.names=F)
 
 
 ############do something shiny....
+
+####graph biggest changes at each age - like in that Geschwind paper...
+
+#get up/down regulated genes
+
+day0_sig <- day0[which(day0[,"adj.P.Val"] <= 0.05),]
+day0_sig.o <- day0_sig[order(abs(day0_sig[,"logFC"]),decreasing = TRUE),]
+day0_sig.od <- day0_sig.o[!duplicated(day0_sig.o[,"EnsemblID"]),c("ID","EnsemblID","logFC")]
+
+day1_sig <- day1[which(day1[,"adj.P.Val"] <= 0.05),]
+day1_sig.o <- day1_sig[order(abs(day1_sig[,"logFC"]),decreasing = TRUE),]
+day1_sig.od <- day1_sig.o[!duplicated(day1_sig.o[,"EnsemblID"]),c("ID","EnsemblID","logFC")]
+
+day2_sig <- day2[which(day2[,"adj.P.Val"] <= 0.05),]
+day2_sig.o <- day2_sig[order(abs(day2_sig[,"logFC"]),decreasing = TRUE),]
+day2_sig.od <- day2_sig.o[!duplicated(day2_sig.o[,"EnsemblID"]),c("ID","EnsemblID","logFC")]
+
+day4_sig <- day4[which(day4[,"adj.P.Val"] <= 0.05),]
+day4_sig.o <- day4_sig[order(abs(day4_sig[,"logFC"]),decreasing = TRUE),]
+day4_sig.od <- day4_sig.o[!duplicated(day4_sig.o[,"EnsemblID"]),c("ID","EnsemblID","logFC")]
+
+day0_up <- day0_sig.od[which(day0_sig.od[,"logFC"] >= 1),c("ID","EnsemblID")]
+day0_down <- day0_sig.od[which(day0_sig.od[,"logFC"] <= -1),c("ID","EnsemblID")]
+
+day1_up <- day1_sig.od[which(day1_sig.od[,"logFC"] >= 1),c("ID","EnsemblID")]
+day1_down <- day1_sig.od[which(day1_sig.od[,"logFC"] <= -1),c("ID","EnsemblID")]
+
+day2_up <- day2_sig.od[which(day2_sig.od[,"logFC"] >= 1),c("ID","EnsemblID")]
+day2_down <- day2_sig.od[which(day2_sig.od[,"logFC"] <= -1),c("ID","EnsemblID")]
+
+day4_up <- day4_sig.od[which(day4_sig.od[,"logFC"] >= 1),c("ID","EnsemblID")]
+day4_down <- day4_sig.od[which(day4_sig.od[,"logFC"] <= -1),c("ID","EnsemblID")]
+
+###make list for comparison across timepoints
+
+changing_REST <- rbind(day0_sig.od,day1_sig.od,day2_sig.od,day4_sig.od)
+
+write.csv(changing_REST,file = "results/genes_changing_withwithout_REST_sig.csv")
+
+
+
 
 #######Make a heatmap
 ##calculate averages
